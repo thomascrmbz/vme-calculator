@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weighted Water-Filling — EV Peak & Network Tariff Demo</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --ink: #e9eef6;
+            --muted: #97a0af;
+            --accent: #5aa9ff;
+            --accent-2: #9ef0ff;
+            --danger: #ff7a7a;
+            --ok: #6be675;
+            --grid: #2a2f3a;
+            --fill: #58a6ff33;
+            --fill-strong: #58a6ff;
+            --cap: #444c5a
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg);
+            color: var(--ink);
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"
+        }
+
+        .wrap {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px
+        }
+
+        .header img {
+            height: 100px
+        }
+
+        h1 {
+            font-size: 22px;
+            margin: 0;
+            letter-spacing: .2px
+        }
+
+        p.lead {
+            color: var(--muted);
+            margin-top: 4px
+        }
+
+        .panel {
+            background: var(--panel);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .25)
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+            align-items: center
+        }
+
+        .controls .cell {
+            grid-column: span 12
+        }
+
+        @media(min-width:860px) {
+            .controls .cell {
+                grid-column: span 6
+            }
+        }
+
+        @media(min-width:1024px) {
+            .controls .cell.sm {
+                grid-column: span 3
+            }
+
+            .controls .cell.md {
+                grid-column: span 4
+            }
+
+            .controls .cell.lg {
+                grid-column: span 6
+            }
+
+            .controls .cell.xl {
+                grid-column: span 8
+            }
+        }
+
+        label {
+            display: block;
+            font-size: 12px;
+            color: var(--muted);
+            margin-bottom: 6px
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="range"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 12px;
+            background: #0c0e13;
+            border: 1px solid #222834;
+            color: var(--ink);
+            border-radius: 10px
+        }
+
+        input[type="range"] {
+            padding: 8px 0
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            align-items: center
+        }
+
+        .btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: #0c0e13;
+            border: 1px solid #222834;
+            color: var(--ink);
+            cursor: pointer;
+            user-select: none;
+            transition: .15s ease
+        }
+
+        .btn:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px #58a6ff33 inset
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #08111c;
+            border-color: transparent;
+            font-weight: 600
+        }
+
+        .btn.ghost {
+            background: transparent
+        }
+
+        .kpi {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 12px;
+            margin-top: 12px
+        }
+
+        .kpi .card {
+            grid-column: span 12;
+            background: #0c0e13;
+            border: 1px solid #222834;
+            border-radius: 14px;
+            padding: 12px
+        }
+
+        @media(min-width:860px) {
+            .kpi .card {
+                grid-column: span 4
+            }
+        }
+
+        .kpi .val {
+            font-size: 20px;
+            font-weight: 700
+        }
+
+        .kpi .sub {
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .viz {
+            margin-top: 16px
+        }
+
+        .svgbox {
+            position: relative;
+            width: 100%;
+            height: 420px;
+            background: linear-gradient(180deg, #151924 0%, #10131b 100%);
+            border-radius: 14px;
+            border: 1px solid #1f2532;
+            overflow: hidden
+        }
+
+        .legend {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        .legend .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px
+        }
+
+        .dot.fill {
+            background: var(--fill-strong)
+        }
+
+        .dot.cap {
+            background: var(--cap)
+        }
+
+        .dot.demand {
+            background: #2b3241
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 12px
+        }
+
+        th,
+        td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #222834;
+            text-align: right
+        }
+
+        th:first-child,
+        td:first-child {
+            text-align: left
+        }
+
+        tbody tr:hover {
+            background: rgba(88, 166, 255, .06)
+        }
+
+        .mono {
+            font-variant-numeric: tabular-nums;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace
+        }
+
+        .progress {
+            height: 6px;
+            background: #0c0e13;
+            border-radius: 999px;
+            border: 1px solid #222834;
+            overflow: hidden
+        }
+
+        .progress>div {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-2));
+            transition: width .25s ease
+        }
+
+        .note {
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        .piewrap {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 12px
+        }
+
+        .piebox {
+            height: 300px
+        }
+
+        .pielegend {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .pielegend .chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #0c0e13;
+            border: 1px solid #222834;
+            border-radius: 10px;
+            padding: 6px 8px;
+            grid-column: span 12
+        }
+
+        @media(min-width:860px) {
+            .pielegend .chip {
+                grid-column: span 4
+            }
+        }
+
+        .pielegend .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 2px
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #c4d0e3;
+            margin: 0 0 8px
+        }
+
+        .subtle {
+            color: var(--muted);
+            font-size: 12px
+        }
+
+        .divider {
+            height: 1px;
+            background: #1f2532;
+            margin: 18px 0;
+            border: none
+        }
+
+        #chartTOU {
+            height: 320px
+        }
+
+        .tiny {
+            font-size: 12px;
+            color: var(--muted)
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="header">
+            <img src="https://i.ibb.co/jPPPGVWK/image-removebg-preview.png" alt="Alien Mobility" />
+            <div>
+                <h1>Tariff Allocation</h1>
+                <p class="lead">Visualize how export headroom <span class="mono">H</span> is allocated fairly across EVs
+                    using <b>weighted max–min</b> (“water-filling”). Capacity part uses kW at the coincident peak;
+                    Network tariff part uses kWh and an injection pool.</p>
+            </div>
+        </div>
+
+        <!-- ===================== CAPACITY (kW) SECTION ===================== -->
+        <div class="panel">
+            <div class="section-title">Capacity / Peak charges (kW)</div>
+            <div class="controls">
+                <div class="cell lg">
+                    <label>Demands p (kW) — comma separated</label>
+                    <input id="inpP" type="text" value="4,4,4,4,4,7,7,11" />
+                </div>
+                <div class="cell lg">
+                    <label>Weights w (any positive numbers; normalised automatically)</label>
+                    <input id="inpW" type="text" value="0.05,0.05,0.05,0.05,0.05,0.15,0.15,0.4" />
+                </div>
+
+                <div class="cell md">
+                    <label>Headroom H (kW) <span id="lblH" class="mono"></span></label>
+                    <input id="rngH" type="range" min="0" max="45" step="0.1" value="8" />
+                </div>
+                <div class="cell md">
+                    <label>Peak cost C (EUR) <span id="lblC" class="mono"></span></label>
+                    <input id="rngC" type="range" min="0" max="200" step="1" value="20" />
+                </div>
+                <div class="cell sm">
+                    <label>Water level t (manual scrub)</label>
+                    <input id="rngT" type="range" min="0" max="20" step="0.01" value="0" />
+                </div>
+                <div class="cell sm row" style="margin-top:22px;gap:8px;">
+                    <button id="btnCompute" class="btn">Apply p & w</button>
+                    <button id="btnEqualW" class="btn ghost">Equal weights</button>
+                    <button id="btnNormalizeW" class="btn ghost">Normalize w</button>
+                </div>
+                <div class="cell sm row" style="margin-top:22px;gap:8px;">
+                    <button id="btnPlay" class="btn primary">▶ Play to H</button>
+                    <button id="btnPause" class="btn">⏸ Pause</button>
+                    <button id="btnReset" class="btn">⟲ Reset t</button>
+                </div>
+                <div class="cell xl">
+                    <div class="progress" title="Used headroom / H">
+                        <div id="barUsed"></div>
+                    </div>
+                    <div class="note" style="margin-top:6px;">
+                        Used headroom <span id="usedHeadroom" class="mono">0.00</span> / H
+                        <span id="Hval" class="mono">0.00</span> kW · Target level t* <span id="tStar"
+                            class="mono">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi">
+                <div class="card">
+                    <div class="sub">Total demand Σp</div>
+                    <div class="val mono" id="kpiSumP">—</div>
+                </div>
+                <div class="card">
+                    <div class="sub">Effective headroom H′ = min(H, Σp)</div>
+                    <div class="val mono" id="kpiHeff">—</div>
+                </div>
+                <div class="card">
+                    <div class="sub">Total contribution Σc (kW)</div>
+                    <div class="val mono" id="kpiSumC">—</div>
+                </div>
+            </div>
+
+            <div class="viz">
+                <div class="svgbox" id="chart"></div>
+                <div class="legend">
+                    <span class="dot demand"></span> demand height = pᵢ / wᵢ
+                    <span class="dot fill"></span> filled = min(pᵢ, wᵢ·t)
+                    <span class="dot cap"></span> waterline t
+                </div>
+            </div>
+
+            <div class="viz">
+                <div class="piewrap">
+                    <div class="svgbox piebox" id="pie"></div>
+                    <div id="pieLegend" class="pielegend"></div>
+                </div>
+            </div>
+
+            <table id="tbl">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>pᵢ (kW)</th>
+                        <th>wᵢ</th>
+                        <th>bᵢ = pᵢ/wᵢ</th>
+                        <th>aᵢ (kW)</th>
+                        <th>cᵢ (kW)</th>
+                        <th>€ share</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- ===================== NETWORK TARIFF (kWh) SECTION ===================== -->
+        <div class="panel">
+            <div class="section-title">Network tariff (energy, kWh)</div>
+            <p class="subtle">Allocate an injection pool (kWh) to EVs and bill remaining net import energy at a tariff
+                (€/kWh). Choose allocation rule.</p>
+            <div class="controls">
+                <div class="cell lg">
+                    <label>Energy demands e (kWh) — comma separated</label>
+                    <input id="inpE" type="text" value="4,5" />
+                </div>
+                <div class="cell lg">
+                    <label>Weights w (re-uses capacity weights; will be normalised & resized if needed)</label>
+                    <input id="inpWEcho" type="text" value="(uses w above)" disabled />
+                </div>
+
+                <div class="cell md">
+                    <label>Injection headroom Hₑ (kWh) <span id="lblHe" class="mono"></span></label>
+                    <input id="rngHe" type="range" min="0" max="20" step="0.1" value="5" />
+                </div>
+                <div class="cell md">
+                    <label>Energy tariff r (€/kWh)</label>
+                    <input id="inpRate" type="number" min="0" step="0.01" value="0.30" />
+                </div>
+                <div class="cell md">
+                    <label>Injection tariff r_in (€/kWh, credit)</label>
+                    <input id="inpRateInj" type="number" min="0" step="0.01" value="0.05" />
+                </div>
+
+                <div class="cell md">
+                    <label>Allocation method</label>
+                    <select id="selMethod"
+                        style="width:100%;padding:10px 12px;background:#0c0e13;border:1px solid #222834;color:var(--ink);border-radius:10px;">
+                        <option value="maxmin">Max–min (equal weights)</option>
+                        <option value="proportional">Proportional to eᵢ</option>
+                        <option value="weighted" selected>Weighted (use w)</option>
+                    </select>
+                </div>
+                <div class="cell sm row" style="margin-top: 22px; gap:8px;">
+                    <button id="btnApplyE" class="btn">Apply e & method</button>
+                    <button id="btnCopyPToE" class="btn ghost">Copy p → e</button>
+                    <span id="noteWE" class="subtle"></span>
+                </div>
+            </div>
+
+            <div class="kpi">
+                <div class="card">
+                    <div class="sub">Total energy Σe</div>
+                    <div class="val mono" id="kpiSumE">—</div>
+                </div>
+                <div class="card">
+                    <div class="sub">Effective headroom Hₑ′ = min(Hₑ, Σe)</div>
+                    <div class="val mono" id="kpiHeffE">—</div>
+                </div>
+                <div class="card">
+                    <div class="sub">Net import Σcₑ (kWh)</div>
+                    <div class="val mono" id="kpiSumCE">—</div>
+                </div>
+            </div>
+
+            <div class="viz">
+                <div class="piewrap">
+                    <div class="svgbox piebox" id="pieE"></div>
+                    <div id="pieLegendE" class="pielegend"></div>
+                </div>
+            </div>
+
+            <table id="tblE">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>eᵢ (kWh)</th>
+                        <th>wᵢ (used)</th>
+                        <th>aᵢ (kWh from injection)</th>
+                        <th>cᵢ (kWh net import)</th>
+                        <th>Import € (cᵢ×r)</th>
+                        <th>Credit € (aᵢ×r_in)</th>
+                        <th>Net €</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <hr class="divider" />
+
+        <!-- ===================== TOU ENERGY PRICES SECTION ===================== -->
+        <div class="panel">
+            <div class="section-title">Energy price (time-of-use) — example day</div>
+            <p class="subtle">24 hourly prices (bars). Drag the window edges on the chart to set EV A’s start & stop;
+                cost uses hourly prices.</p>
+
+
+
+            <!-- EV A only -->
+            <div class="cell md">
+                <label>EV A energy (kWh)</label>
+                <input id="evA_e" type="number" min="0" step="0.1" value="12">
+                <div class="tiny">Drag the chart handles to set start time and duration</div>
+            </div>
+
+            <!-- Others (simple kWh × €/kWh) -->
+            <div class="cell lg">
+                <label>Other drivers — kWh list (comma)</label>
+                <input id="others_kwh" type="text" value="5,7,9">
+                <label style="margin-top:6px;">Other drivers — €/kWh (single or comma)</label>
+                <input id="others_price" type="text" value="0.27">
+                <div class="tiny">If fewer prices than kWh, last price is reused. <button id="btnSyncOthers"
+                        class="btn ghost" style="margin-left:8px;padding:4px 8px;font-size:11px;">Sync with
+                        capacity</button></div>
+            </div>
+
+            <div class="viz">
+                <div class="svgbox" id="chartTOU"></div>
+                <div class="legend">
+                    <span class="dot cap"></span> Price (€/kWh, bars)
+                    <span class="dot fill"></span> Charging window (shaded)
+                </div>
+            </div>
+
+            <table id="tblTOU">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Energy over day (kWh)</th>
+                        <th>Energy cost (€)</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <!-- ===================== GRAND TOTALS ===================== -->
+        <div class="panel">
+            <div class="section-title">Grand totals per driver</div>
+            <p class="subtle">Peak € (kW) + Network tariff € (kWh) + TOU energy € (€/kWh over the day).</p>
+            <table id="tblGrand">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Peak €</th>
+                        <th>Network tariff €</th>
+                        <th>Energy (TOU) €</th>
+                        <th>Total €</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const $ = sel => document.querySelector(sel);
+        const fmt = (x, d = 2) => Number(x).toFixed(d);
+        const cache = { peakEuros: [], energyTariffEuros: [], touEuros: [] };
+
+        // ---------- Core math ----------
+        function normalizeWeights(w) { const t = w.reduce((s, x) => s + Math.max(0, x), 0); if (t <= 0) return w.map(_ => 0); return w.map(x => Math.max(0, x) / t) }
+        function weightedWaterFilling(p, H, w) {
+            const n = p.length; if (!n) return { a: [], t: 0, Heff: 0 }; const wN = normalizeWeights(w);
+            const sumP = p.reduce((s, x) => s + Math.max(0, x), 0); const Heff = Math.min(Math.max(0, H), sumP);
+            if (Heff <= 0) return { a: new Array(n).fill(0), t: 0, Heff };
+            const eps = 1e-12; let pairs = []; for (let i = 0; i < n; i++) { const wi = wN[i], pi = Math.max(0, p[i]); if (wi > eps) pairs.push({ b: pi / wi, i }) }
+            pairs.sort((a, b) => a.b - b.b); let active = new Set(pairs.map(o => o.i)); let sumW = 0; for (const i of active) sumW += wN[i];
+            let tPrev = 0, remaining = Heff, k = 0; const near = (x, y) => Math.abs(x - y) <= 1e-12; if (sumW <= 0) return { a: new Array(n).fill(0), t: 0, Heff };
+            while (k < pairs.length) {
+                const b = pairs[k].b, need = (b - tPrev) * sumW; if (remaining <= need + 1e-12) { const t = tPrev + remaining / sumW; const a = p.map((pi, idx) => Math.min(Math.max(0, pi), wN[idx] * t)); return { a, t, Heff } }
+                remaining -= need; tPrev = b; while (k < pairs.length && near(pairs[k].b, b)) { const idx = pairs[k].i; if (active.has(idx)) { active.delete(idx); sumW -= wN[idx] } k++ }
+                if (sumW <= 0) { const t = tPrev; const a = p.map((pi, idx) => Math.min(Math.max(0, pi), wN[idx] * t)); return { a, t, Heff } }
+            }
+            const t = tPrev + remaining / Math.max(sumW, 1e-12); const a = p.map((pi, idx) => Math.min(Math.max(0, pi), wN[idx] * t)); return { a, t, Heff }
+        }
+        function contributionsAndShares(p, a, C) { const c = p.map((pi, i) => Math.max(0, pi - a[i])); const d = c.reduce((s, x) => s + x, 0); let shares = new Array(c.length).fill(0); if (d > 1e-12) shares = c.map(ci => C * ci / d); return { c, shares } }
+        function roundCentsFix(shares, total) {
+            const r = shares.map(x => Math.round((x + 1e-9) * 100) / 100); let diff = Math.round((total - r.reduce((s, x) => s + x, 0)) * 100) / 100; if (Math.abs(diff) < 0.005) return r;
+            const fr = shares.map((x, i) => ({ i, frac: x - Math.floor(x), val: x })); if (diff > 0) { fr.sort((a, b) => (b.frac - a.frac) || (b.val - a.val)); for (let k = 0; k < Math.round(diff / 0.01); k++)r[fr[k % fr.length].i] += 0.01 }
+            else { fr.sort((a, b) => (a.frac - b.frac) || (a.val - b.val)); for (let k = 0; k < Math.round(-diff / 0.01); k++)r[fr[k % fr.length].i] -= 0.01 }
+            return r.map(x => Math.round(x * 100) / 100)
+        }
+
+        // ---------- Chart (capacity) ----------
+        const chartEl = $('#chart'); const W = () => chartEl?.clientWidth || 0; const Hpx = () => chartEl?.clientHeight || 0; let svg, gBuckets, gWaterline, gAxes;
+        function initSVG() { if (!chartEl) return; chartEl.innerHTML = ''; const w = W(), h = Hpx(); svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.style.display = 'block'; svg.style.borderRadius = '14px'; chartEl.appendChild(svg); gAxes = makeGroup(); gBuckets = makeGroup(); gWaterline = makeGroup(); svg.appendChild(gAxes); svg.appendChild(gBuckets); svg.appendChild(gWaterline) }
+        function makeGroup() { return document.createElementNS('http://www.w3.org/2000/svg', 'g') }
+        function line(x1, y1, x2, y2, cls) { const e = document.createElementNS('http://www.w3.org/2000/svg', 'line'); e.setAttribute('x1', x1); e.setAttribute('y1', y1); e.setAttribute('x2', x2); e.setAttribute('y2', y2); e.setAttribute('stroke', cls || '#2b3241'); e.setAttribute('stroke-width', 1); e.setAttribute('stroke-dasharray', '4,4'); return e }
+        function rect(x, y, w, h, fill, stroke) { const e = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('fill', fill || 'none'); if (stroke) { e.setAttribute('stroke', stroke); e.setAttribute('stroke-width', 1) } e.setAttribute('rx', 6); e.setAttribute('ry', 6); return e }
+        function text(x, y, str, anchor = 'middle', size = 11, color = '#b6c2d0') { const e = document.createElementNS('http://www.w3.org/2000/svg', 'text'); e.setAttribute('x', x); e.setAttribute('y', y); e.setAttribute('text-anchor', anchor); e.setAttribute('font-size', size); e.setAttribute('fill', color); e.setAttribute('font-family', 'ui-sans-serif, system-ui'); e.textContent = str; return e }
+
+        // ---------- State & UI (capacity) ----------
+        const state = { p: [4, 4, 4, 4, 4, 7, 7, 11], w: [0.05, 0.05, 0.05, 0.05, 0.05, 0.15, 0.15, 0.4], H: 8, C: 20, t: 0, anim: null, targetT: 0 };
+
+        function parseList(str) { return str.split(',').map(s => parseFloat(s.trim())).filter(x => !Number.isNaN(x)) }
+        function applyInputs() {
+            const p = parseList($('#inpP').value); const w = parseList($('#inpW').value); if (w.length !== p.length) { alert('Weights length must match demands length.'); return }
+            state.p = p; state.w = w; const sumP = state.p.reduce((s, x) => s + x, 0); const rngH = $('#rngH'); rngH.max = Math.max(1, sumP); if (state.H > sumP) state.H = Math.min(state.H, sumP); rngH.value = state.H; update()
+
+            // Auto-sync other drivers kWh with capacity demands
+            syncOthersWithCapacity();
+        }
+        function equalWeights() { const n = state.p.length; state.w = new Array(n).fill(1 / n); $('#inpW').value = state.w.map(x => x.toFixed(4)).join(','); update() }
+        function normalizeWInput() { const w = parseList($('#inpW').value); const wn = normalizeWeights(w); $('#inpW').value = wn.map(x => x.toFixed(4)).join(','); state.w = wn; update() }
+        function usedAtLevelT(t) { const wN = normalizeWeights(state.w); let used = 0; for (let i = 0; i < state.p.length; i++)used += Math.min(state.p[i], wN[i] * t); return used }
+
+        function update() {
+            const res = weightedWaterFilling(state.p, state.H, state.w); state.targetT = res.t;
+            const { a } = res; const { c, shares } = contributionsAndShares(state.p, a, state.C); const sharesRounded = roundCentsFix(shares, state.C); cache.peakEuros = sharesRounded.slice(); recomputeGrandTotals();
+            const sumP = state.p.reduce((s, x) => s + x, 0); const Heff = res.Heff; const sumC = c.reduce((s, x) => s + x, 0);
+            $('#kpiSumP').textContent = fmt(sumP, 2) + ' kW'; $('#kpiHeff').textContent = fmt(Heff, 2) + ' kW'; $('#kpiSumC').textContent = fmt(sumC, 2) + ' kW';
+            $('#lblH').textContent = '(' + fmt(state.H, 2) + ' kW)'; $('#lblC').textContent = '(' + fmt(state.C, 0) + ' €)'; $('#Hval').textContent = fmt(state.H, 2); $('#tStar').textContent = fmt(state.targetT, 2);
+            const tManual = parseFloat($('#rngT').value); const used = usedAtLevelT(tManual); $('#usedHeadroom').textContent = fmt(used, 2);
+            const pct = Math.max(0, Math.min(100, (state.H > 0 ? (used / state.H * 100) : 0))); $('#barUsed').style.width = pct + '%';
+            drawBuckets(tManual); renderTable(a, c, sharesRounded, res.t); drawPie(c); renderPieLegend(c);
+            updateEnergy(false);
+        }
+
+        function drawBuckets(tLevel) {
+            initSVG(); if (!chartEl) return; const w = W(), h = Hpx(); const pad = { l: 30, r: 30, t: 30, b: 40 }; const innerW = w - pad.l - pad.r; const innerH = h - pad.t - pad.b;
+            const wN = normalizeWeights(state.w); const n = state.p.length; const bHeights = state.p.map((pi, i) => (wN[i] > 1e-12 ? pi / wN[i] : 0)); const maxB = Math.max(1, ...bHeights);
+            const totalW = wN.reduce((s, x) => s + x, 0) || 1; let xCursor = pad.l; const gap = 8;
+            const yWater = pad.t + innerH * (1 - Math.min(1, tLevel / maxB)); const waterLine = line(pad.l, yWater, w - pad.r, yWater, '#596073'); gWaterline.appendChild(waterLine);
+            for (let g = 0; g <= 4; g++) { const gy = pad.t + innerH * (g / 4); gAxes.appendChild(line(pad.l, gy, w - pad.r, gy, '#232836')) }
+            for (let i = 0; i < n; i++) {
+                const wi = wN[i]; const width = Math.max(8, (innerW - gap * (n - 1)) * wi / (totalW)); const b = bHeights[i]; const demandH = innerH * (b / maxB); const x = xCursor; const y = pad.t + innerH - demandH;
+                const bucketBG = rect(x, y, width, demandH, '#1a2130', '#2a3243'); gBuckets.appendChild(bucketBG);
+                const filled = Math.min(b, tLevel); const fillH = innerH * (filled / maxB); const fy = pad.t + innerH - fillH;
+                const fillRect = rect(x + 1, fy, Math.max(0, width - 2), Math.max(0, fillH - 1), 'rgba(88,166,255,0.55)', 'rgba(88,166,255,0.8)'); gBuckets.appendChild(fillRect);
+                gBuckets.appendChild(text(x + width / 2, y - 6, `EV${i + 1}`, 'middle', 11, '#8f9bb3'));
+                gBuckets.appendChild(text(x + width / 2, y + demandH + 14, `p=${fmt(state.p[i], 2)} kW`, 'middle', 11, '#a8b3c7'));
+                xCursor += width + gap;
+            }
+        }
+        function renderTable(a, c, sharesRounded) {
+            const tb = $('#tbl tbody'); tb.innerHTML = ''; const wN = normalizeWeights(state.w);
+            for (let i = 0; i < state.p.length; i++) {
+                const tr = document.createElement('tr'); const bi = (wN[i] > 1e-12 ? state.p[i] / wN[i] : Infinity);
+                tr.innerHTML = `<td>EV${i + 1}</td><td class="mono">${fmt(state.p[i], 2)}</td><td class="mono">${fmt(wN[i], 4)}</td><td class="mono">${bi === Infinity ? '∞' : fmt(bi, 2)}</td><td class="mono">${fmt(a[i], 3)}</td><td class="mono">${fmt(c[i], 3)}</td><td class="mono">€ ${fmt(sharesRounded[i], 2)}</td>`;
+                tb.appendChild(tr)
+            }
+        }
+
+        // ---------- Animation ----------
+        function playToTarget() {
+            if (state.anim) cancelAnimationFrame(state.anim); const t0 = parseFloat($('#rngT').value); const t1 = state.targetT; const dur = 1600; const start = performance.now(); const ease = x => 1 - Math.pow(1 - x, 3);
+            function step(now) { const el = Math.min(1, (now - start) / dur); const t = t0 + (t1 - t0) * ease(el); $('#rngT').value = t; update(); if (el < 1) state.anim = requestAnimationFrame(step) }
+            state.anim = requestAnimationFrame(step)
+        }
+
+        // ---------- Wire UI (capacity) ----------
+        window.addEventListener('resize', () => update());
+        $('#btnCompute').addEventListener('click', applyInputs);
+        $('#btnEqualW').addEventListener('click', equalWeights);
+        $('#btnNormalizeW').addEventListener('click', normalizeWInput);
+        $('#rngH').addEventListener('input', e => { state.H = parseFloat(e.target.value); update() });
+        $('#rngC').addEventListener('input', e => { state.C = parseFloat(e.target.value); update() });
+        $('#rngT').addEventListener('input', () => update());
+        $('#btnPlay').addEventListener('click', playToTarget);
+        $('#btnPause').addEventListener('click', () => { if (state.anim) cancelAnimationFrame(state.anim); state.anim = null });
+        $('#btnReset').addEventListener('click', () => { $('#rngT').value = 0; update() });
+
+        // EV A energy input
+        $('#evA_e').addEventListener('input', e => { win.A.kwh = +e.target.value || 0; updateTOU() });
+
+
+
+        // Energy section wiring
+        $('#btnCopyPToE').addEventListener('click', copyPtoE);
+        $('#btnApplyE').addEventListener('click', applyE);
+        $('#rngHe').addEventListener('input', () => updateEnergy(true));
+        $('#inpRate').addEventListener('input', () => updateEnergy(true));
+        $('#selMethod').addEventListener('change', () => { energy.method = $('#selMethod').value; updateEnergy(true) });
+        $('#inpRateInj').addEventListener('input', () => updateEnergy(true));
+
+        // ===================== Pie (capacity) =====================
+        function drawPie(c) {
+            const el = document.getElementById('pie'); if (!el) return; el.innerHTML = '';
+            const w = el.clientWidth, h = el.clientHeight; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.style.display = 'block'; svg.style.borderRadius = '14px'; el.appendChild(svg);
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) * .38; const sum = c.reduce((s, x) => s + x, 0);
+            if (!sum || sum <= 1e-12) { const t = document.createElementNS('http://www.w3.org/2000/svg', 'text'); t.setAttribute('x', cx); t.setAttribute('y', cy); t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'middle'); t.setAttribute('fill', '#93a0b4'); t.setAttribute('font-size', '13'); t.textContent = 'No import peak to allocate'; svg.appendChild(t); return }
+            let start = -Math.PI / 2; for (let i = 0; i < c.length; i++) {
+                const val = Math.max(0, c[i]); const angle = (val / sum) * Math.PI * 2; const end = start + angle; const large = angle > Math.PI ? 1 : 0;
+                const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start); const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end); const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`; path.setAttribute('d', d); const hue = (i * 53) % 360; path.setAttribute('fill', `hsl(${hue} 70% 55% / 0.85)`); path.setAttribute('stroke', 'rgba(0,0,0,0.35)'); path.setAttribute('stroke-width', '1'); svg.appendChild(path); start = end
+            }
+        }
+        function renderPieLegend(c) {
+            const el = document.getElementById('pieLegend'); if (!el) return; const sum = c.reduce((s, x) => s + x, 0); el.innerHTML = ''; if (!sum || sum <= 1e-12) return;
+            for (let i = 0; i < c.length; i++) {
+                const pct = sum > 0 ? (c[i] / sum * 100) : 0; const chip = document.createElement('div'); chip.className = 'chip'; const hue = (i * 53) % 360;
+                chip.innerHTML = `<span class="swatch" style="background:hsl(${hue} 70% 55%)"></span><span>EV${i + 1}</span><span class="mono" style="margin-left:auto">${fmt(c[i], 2)} kW · ${fmt(pct, 1)}%</span>`; el.appendChild(chip)
+            }
+        }
+
+        // ===================== ENERGY (kWh) SECTION =====================
+        const energy = { e: [4, 5], He: 5, rate: 0.30, rateInj: 0.05, method: 'weighted' };
+        function initEnergyDefaults() {
+            $('#rngHe').value = energy.He; $('#lblHe').textContent = '(' + fmt(energy.He, 2) + ' kWh)'; $('#inpRate').value = energy.rate; $('#selMethod').value = energy.method; $('#inpE').value = energy.e.join(','); $('#inpRateInj').value = energy.rateInj;
+            const sumE = energy.e.reduce((s, x) => s + x, 0); $('#rngHe').max = Math.max(1, sumE); updateEnergy(true)
+        }
+        function copyPtoE() { energy.e = [...state.p]; $('#inpE').value = energy.e.join(','); const sumE = energy.e.reduce((s, x) => s + x, 0); $('#rngHe').max = Math.max(1, sumE); if (energy.He > sumE) { energy.He = sumE; $('#rngHe').value = energy.He } updateEnergy(true) }
+        function applyE() { const e = parseList($('#inpE').value); if (!e.length) { alert('Please enter at least one energy value.'); return } energy.e = e; energy.rate = parseFloat($('#inpRate').value) || 0; energy.method = $('#selMethod').value; const sumE = energy.e.reduce((s, x) => s + x, 0); $('#rngHe').max = Math.max(1, sumE); if (energy.He > sumE) { energy.He = sumE; $('#rngHe').value = energy.He } energy.rateInj = parseFloat($('#inpRateInj').value) || 0; updateEnergy(true) }
+        function resizeWeightsForEnergy() { const nE = energy.e.length; const nW = state.w.length; let wUsed; if (nE === nW) { wUsed = normalizeWeights(state.w); $('#noteWE').textContent = '' } else { wUsed = new Array(nE).fill(1 / nE); $('#noteWE').textContent = '(weights size != e; using equal weights)' } return wUsed }
+        function allocEnergy(e, He, method, w) {
+            const sumE = e.reduce((s, x) => s + Math.max(0, x), 0); const Heff = Math.min(Math.max(0, He), sumE); if (sumE <= 0) return { a: e.map(_ => 0), Heff }; if (Heff <= 0) return { a: e.map(_ => 0), Heff };
+            if (method === 'proportional') { const a = e.map(x => Heff * (Math.max(0, x) / sumE)); return { a, Heff } } if (method === 'maxmin') { const n = e.length; const wEq = new Array(n).fill(1 / n); const { a } = weightedWaterFilling(e, Heff, wEq); return { a, Heff } }
+            const { a } = weightedWaterFilling(e, Heff, w); return { a, Heff }
+        }
+        function updateEnergy(refreshFromInputs) {
+            if (refreshFromInputs) { energy.He = parseFloat($('#rngHe').value); energy.rate = parseFloat($('#inpRate').value) || 0; energy.rateInj = parseFloat($('#inpRateInj').value) || 0; $('#lblHe').textContent = '(' + fmt(energy.He, 2) + ' kWh)' }
+            const e = energy.e.slice(); const wUsed = resizeWeightsForEnergy(); const { a, Heff } = allocEnergy(e, energy.He, energy.method, wUsed); const c = e.map((ei, i) => Math.max(0, ei - a[i]));
+            const eurosImportExact = c.map(ci => ci * energy.rate); const eurosCreditExact = a.map(ai => ai * energy.rateInj); const eurosNetExact = eurosImportExact.map((imp, i) => imp + eurosCreditExact[i]);
+            const totalNetExact = eurosNetExact.reduce((s, x) => s + x, 0); const eurosNet = roundCentsFix(eurosNetExact, Math.round(totalNetExact * 100) / 100); cache.energyTariffEuros = eurosNet.slice(); recomputeGrandTotals();
+            const sumE = e.reduce((s, x) => s + x, 0); const sumCE = c.reduce((s, x) => s + x, 0); $('#kpiSumE').textContent = fmt(sumE, 2) + ' kWh'; $('#kpiHeffE').textContent = fmt(Heff, 2) + ' kWh'; $('#kpiSumCE').textContent = fmt(sumCE, 2) + ' kWh';
+            const pieVals = eurosNet.map(v => Math.max(0, v)); drawPieE(pieVals); renderPieLegendE(eurosNet);
+            const tb = $('#tblE tbody'); tb.innerHTML = ''; let sumImport = 0, sumCredit = 0, sumNet = 0;
+            for (let i = 0; i < e.length; i++) {
+                sumImport += eurosImportExact[i]; sumCredit += eurosCreditExact[i]; sumNet += eurosNet[i];
+                const tr = document.createElement('tr'); tr.innerHTML = `<td>EV${i + 1}</td><td class="mono">${fmt(e[i], 2)}</td><td class="mono">${fmt(wUsed[i] || 0, 4)}</td><td class="mono">${fmt(a[i], 3)}</td><td class="mono">${fmt(c[i], 3)}</td><td class="mono">€ ${fmt(eurosImportExact[i], 2)}</td><td class="mono">€ -${fmt(eurosCreditExact[i], 2)}</td><td class="mono">€ ${fmt(eurosNet[i], 2)}</td>`; tb.appendChild(tr)
+            }
+            const trTot = document.createElement('tr'); trTot.className = 'totals'; trTot.innerHTML = `<td>Total</td><td class="mono">${fmt(sumE, 2)}</td><td></td><td class="mono">${fmt(a.reduce((s, x) => s + x, 0), 2)}</td><td class="mono">${fmt(sumCE, 2)}</td><td class="mono">€ ${fmt(sumImport, 2)}</td><td class="mono">€ -${fmt(sumCredit, 2)}</td><td class="mono">€ ${fmt(sumNet, 2)}</td>`; tb.appendChild(trTot)
+        }
+        function drawPieE(vals) {
+            const el = document.getElementById('pieE'); if (!el) return; el.innerHTML = ''; const w = el.clientWidth, h = el.clientHeight; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.style.display = 'block'; svg.style.borderRadius = '14px'; el.appendChild(svg);
+            const cx = w / 2, cy = h / 2, r = Math.min(w, h) * .38; const sum = vals.reduce((s, x) => s + x, 0);
+            if (!sum || sum <= 1e-12) { const t = document.createElementNS('http://www.w3.org/2000/svg', 'text'); t.setAttribute('x', cx); t.setAttribute('y', cy); t.setAttribute('text-anchor', 'middle'); t.setAttribute('dominant-baseline', 'middle'); t.setAttribute('fill', '#93a0b4'); t.setAttribute('font-size', '13'); t.textContent = 'No energy cost to allocate'; svg.appendChild(t); return }
+            let start = -Math.PI / 2; for (let i = 0; i < vals.length; i++) {
+                const val = Math.max(0, vals[i]); const angle = (val / sum) * Math.PI * 2; const end = start + angle; const large = angle > Math.PI ? 1 : 0;
+                const x1 = cx + r * Math.cos(start), y1 = cy + r * Math.sin(start); const x2 = cx + r * Math.cos(end), y2 = cy + r * Math.sin(end); const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`; path.setAttribute('d', d); const hue = (i * 53) % 360; path.setAttribute('fill', `hsl(${hue} 70% 55% / 0.85)`); path.setAttribute('stroke', 'rgba(0,0,0,0.35)'); path.setAttribute('stroke-width', '1'); svg.appendChild(path); start = end
+            }
+        }
+        function renderPieLegendE(vals) {
+            const el = document.getElementById('pieLegendE'); if (!el) return; const sum = vals.reduce((s, x) => s + x, 0); el.innerHTML = ''; if (!sum || sum <= 1e-12) return;
+            for (let i = 0; i < vals.length; i++) {
+                const pct = sum > 0 ? (vals[i] / sum * 100) : 0; const chip = document.createElement('div'); chip.className = 'chip'; const hue = (i * 53) % 360;
+                chip.innerHTML = `<span class="swatch" style="background:hsl(${hue} 70% 55%)"></span><span>EV${i + 1}</span><span class="mono" style="margin-left:auto">€ ${fmt(vals[i], 2)} · ${fmt(pct, 1)}%</span>`; el.appendChild(chip)
+            }
+        }
+
+        // ===================== TOU (time-of-use) =====================
+        const tou = { price: Array(24).fill(0.2) };
+        function genExamplePrices() {
+            const base = 0.22;
+            tou.price = Array.from({ length: 24 }, (_, h) => {
+                // Night dip (midnight to 6 AM) - lowest prices
+                const nightDip = Math.max(0, 0.08 * Math.exp(-Math.pow((h - 3) / 2, 2)));
+                // Morning peak (6-8 AM) - higher prices
+                const morningPeak = Math.max(0, 0.10 * Math.exp(-Math.pow((h - 7) / 1.5, 2)));
+                // Midday dip (11-15h) - solar generation dip
+                const pvDip = Math.max(0, 0.12 * Math.exp(-Math.pow((h - 13) / 2.5, 2)));
+                // Evening peak (17-21h) - demand peak
+                const evePk = 0.12 * Math.exp(-Math.pow((h - 19) / 2.2, 2));
+                return Math.max(0.03, base - nightDip + morningPeak - pvDip + evePk);
+            });
+        }
+
+        // EV A only (draggable)
+        const win = { A: { kwh: 12, start: 6, dur: 6, enabled: true } };
+        const parseCSV = s => (s || '').split(',').map(x => parseFloat(x.trim())).filter(x => !Number.isNaN(x));
+        function segments24(start, dur) { let s = ((+start) % 24 + 24) % 24, e = s + Math.max(0, +dur); return (e <= 24) ? [[s, e]] : [[s, 24], [0, e - 24]] }
+        function profileFromWindow(start, dur, kwh) {
+            const arr = Array(24).fill(0); if (kwh <= 0 || dur <= 0) return arr; const segs = segments24(start, dur);
+            for (let h = 0; h < 24; h++) { const h0 = h, h1 = h + 1; let ov = 0; for (const [s, e] of segs) { ov += Math.max(0, Math.min(h1, e) - Math.max(h0, s)) } if (ov > 0) arr[h] = kwh * (ov / dur) }
+            return arr
+        }
+
+        let _chartGeom = { left: 0, pad: { l: 40, r: 40, t: 18, b: 26 }, innerW: 0, width: 0 };
+        function drawTOUChart() {
+            const box = document.getElementById('chartTOU'); if (!box) return; box.innerHTML = '';
+            const w = box.clientWidth, h = box.clientHeight; const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('width', w); svg.setAttribute('height', h); svg.style.display = 'block'; box.appendChild(svg);
+            const pad = { l: 40, r: 40, t: 18, b: 26 }, innerW = w - pad.l - pad.r, innerH = h - pad.t - pad.b; _chartGeom = { left: box.getBoundingClientRect().left, pad, innerW, width: w };
+            const pA = win.A.enabled ? profileFromWindow(win.A.start, win.A.dur, win.A.kwh) : Array(24).fill(0); // used for costs
+            const maxPrice = Math.max(0.01, ...tou.price); const xHour = t => pad.l + innerW * (t / 24); const xBar = hIdx => pad.l + innerW / 24 * (hIdx + 0.5); const yPrice = v => pad.t + innerH * (1 - v / maxPrice);
+
+            // Grid
+            for (let g = 0; g <= 4; g++) { const gy = pad.t + innerH * (g / 4); const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', pad.l); ln.setAttribute('x2', w - pad.r); ln.setAttribute('y1', gy); ln.setAttribute('y2', gy); ln.setAttribute('stroke', '#232836'); ln.setAttribute('stroke-dasharray', '4,4'); ln.setAttribute('stroke-width', '1'); svg.appendChild(ln) }
+
+            // PRICE BARS
+            const barW = (innerW / 24) * 0.6;
+            for (let hIdx = 0; hIdx < 24; hIdx++) {
+                const v = tou.price[hIdx], bh = innerH * (v / maxPrice); const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                r.setAttribute('x', xBar(hIdx) - barW / 2); r.setAttribute('y', yPrice(v)); r.setAttribute('width', barW); r.setAttribute('height', Math.max(0, bh));
+
+                // Check if this hour is within the charging window
+                const hourStart = hIdx;
+                const hourEnd = hIdx + 1;
+                const chargingStart = win.A.start;
+                const chargingEnd = win.A.start + win.A.dur;
+
+                // Handle overnight charging (crossing midnight)
+                let isInWindow = false;
+                if (chargingEnd <= 24) {
+                    // Normal case: charging within same day
+                    isInWindow = hourStart >= chargingStart && hourStart < chargingEnd;
+                } else {
+                    // Overnight case: charging crosses midnight
+                    isInWindow = hourStart >= chargingStart || hourStart < (chargingEnd - 24);
+                }
+
+                if (isInWindow) {
+                    // Highlight bars within charging window
+                    r.setAttribute('fill', 'rgba(88,166,255,0.8)'); // Blue highlight
+                    r.setAttribute('stroke', 'rgba(88,166,255,1)');
+                } else {
+                    // Normal bars outside charging window
+                    r.setAttribute('fill', 'rgba(148,163,184,.6)');
+                    r.setAttribute('stroke', 'rgba(148,163,184,.9)');
+                }
+
+                r.setAttribute('rx', 3); r.setAttribute('ry', 3); svg.appendChild(r)
+            }
+
+            // Charging window shading
+            function shadeWindow(col, start, dur) { const segs = segments24(start, dur); for (const [s, e] of segs) { const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); rect.setAttribute('x', xHour(s)); rect.setAttribute('y', pad.t); rect.setAttribute('width', Math.max(0, xHour(e) - xHour(s))); rect.setAttribute('height', innerH); rect.setAttribute('fill', col); rect.setAttribute('rx', 2); rect.setAttribute('ry', 2); svg.appendChild(rect) } }
+            if (win.A.enabled) shadeWindow('rgba(94, 234, 212, .10)', win.A.start, win.A.dur);
+
+            // EV A draggable handles
+            function vHandle(x, color) {
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g'); const ln = document.createElementNS('http://www.w3.org/2000/svg', 'line'); ln.setAttribute('x1', x); ln.setAttribute('x2', x); ln.setAttribute('y1', pad.t); ln.setAttribute('y2', h - pad.b); ln.setAttribute('stroke', color); ln.setAttribute('stroke-width', '3'); g.appendChild(ln);
+                const cap = document.createElementNS('http://www.w3.org/2000/svg', 'rect'); cap.setAttribute('x', x - 6); cap.setAttribute('y', pad.t - 6); cap.setAttribute('width', 12); cap.setAttribute('height', 12); cap.setAttribute('rx', 3); cap.setAttribute('ry', 3); cap.setAttribute('fill', color); g.appendChild(cap); return g
+            }
+            if (win.A.enabled) { const xS = xHour(win.A.start); const xE = xHour(Math.min(24, win.A.start + win.A.dur)); svg.appendChild(vHandle(xS, '#5eead4')); svg.appendChild(vHandle(xE, '#5eead4')) }
+
+            // X labels
+            for (let hIdx = 0; hIdx <= 24; hIdx += 3) { const tx = document.createElementNS('http://www.w3.org/2000/svg', 'text'); tx.setAttribute('x', xHour(hIdx)); tx.setAttribute('y', h - 6); tx.setAttribute('text-anchor', 'middle'); tx.setAttribute('font-size', '10'); tx.setAttribute('fill', '#9aa6bd'); tx.textContent = `${hIdx}:00`; svg.appendChild(tx) }
+        }
+
+        // Drag helpers
+        const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
+        const snap15 = h => Math.round(h * 4) / 4;
+        const dragA = { mode: null, startX: 0, orig: { s: 0, d: 0 } };
+        function hourFromClientX(clientX) { const g = _chartGeom; const x = clientX - g.left - g.pad.l; const t = 24 * clamp(x / Math.max(1, g.innerW), 0, 1); return snap15(t) }
+        const chartTOUBox = document.getElementById('chartTOU');
+
+        chartTOUBox.addEventListener('mousedown', e => {
+            if (!win.A.enabled) return;
+            const t = hourFromClientX(e.clientX), s = win.A.start, eEnd = Math.min(24, s + win.A.dur); const near = (a, b) => Math.abs(a - b) < 0.4; const inside = t > Math.min(s, eEnd) && t < Math.max(s, eEnd);
+            dragA.startX = e.clientX; dragA.orig = { s, d: win.A.dur };
+            if (near(t, s) && near(t, eEnd)) { dragA.mode = (Math.abs(t - s) <= Math.abs(t - eEnd)) ? 'start' : 'end' }
+            else if (near(t, s)) { dragA.mode = 'start' }
+            else if (near(t, eEnd)) { dragA.mode = 'end' }
+            else if (inside) { dragA.mode = 'move' }
+            else { const dur = clamp(win.A.dur, 0.25, 24); let ns = clamp(t - dur / 2, 0, 24 - dur); win.A.start = snap15(ns); win.A.dur = snap15(dur); updateTOU(); return }
+            e.preventDefault()
+        });
+        window.addEventListener('mousemove', e => {
+            if (!dragA.mode) return; const t = hourFromClientX(e.clientX); const minDur = 0.25, maxDur = 24;
+            if (dragA.mode === 'start') { const maxStart = dragA.orig.s + dragA.orig.d - minDur; win.A.start = snap15(clamp(t, 0, Math.max(0, maxStart))); win.A.dur = snap15(clamp(dragA.orig.d + (dragA.orig.s - win.A.start), minDur, maxDur)) }
+            else if (dragA.mode === 'end') { const newEnd = snap15(clamp(t, win.A.start + minDur, 24)); win.A.dur = snap15(clamp(newEnd - win.A.start, minDur, maxDur)) }
+            else if (dragA.mode === 'move') { const dur = clamp(dragA.orig.d, minDur, maxDur); let ns = clamp(dragA.orig.s + (t - hourFromClientX(dragA.startX)), 0, 24 - dur); win.A.start = snap15(ns); win.A.dur = snap15(dur) }
+            updateTOU()
+        });
+        window.addEventListener('mouseup', () => { dragA.mode = null });
+
+        // TOU computations & table
+        function updateTOU() {
+            if (!tou.price || tou.price.length !== 24) genExamplePrices();
+            const pA = win.A.enabled ? profileFromWindow(win.A.start, win.A.dur, win.A.kwh) : null;
+            const costA = pA ? pA.reduce((s, e, h) => s + e * tou.price[h], 0) : 0;
+
+            const othersK = parseCSV($('#others_kwh').value);
+            let othersR = parseCSV($('#others_price').value); if (!othersR.length) othersR = [0];
+            const othersCosts = othersK.map((k, i) => k * (othersR[i] ?? othersR[othersR.length - 1]));
+
+            const touCosts = []; if (win.A.enabled) { touCosts.push(costA) } for (let i = 0; i < othersCosts.length; i++)touCosts.push(othersCosts[i]); cache.touEuros = touCosts.slice();
+
+            const tb = $('#tblTOU tbody'); tb.innerHTML = ''; let row = 0, sumE = 0, sumEur = 0;
+            if (win.A.enabled) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>EV${++row} (A)</td><td class="mono">${fmt(win.A.kwh, 2)}</td><td class="mono" id="evA-cost">€ ${fmt(costA, 2)}</td>`;
+                tb.appendChild(tr);
+                sumE += win.A.kwh;
+                sumEur += costA;
+
+                // Add highlight effect to the cost cell
+                const costCell = tr.querySelector('#evA-cost');
+                costCell.style.transition = 'background-color 0.3s ease';
+                costCell.style.backgroundColor = 'rgba(88, 166, 255, 0.2)';
+
+                // Remove highlight after animation
+                setTimeout(() => {
+                    costCell.style.backgroundColor = '';
+                }, 1000);
+            }
+            for (let i = 0; i < othersCosts.length; i++) { const tr = document.createElement('tr'); tr.innerHTML = `<td>EV${++row}</td><td class="mono">${fmt(othersK[i] || 0, 2)}</td><td class="mono">€ ${fmt(othersCosts[i] || 0, 2)}</td>`; tb.appendChild(tr); sumE += (othersK[i] || 0); sumEur += (othersCosts[i] || 0) }
+            const trT = document.createElement('tr'); trT.className = 'totals'; trT.innerHTML = `<td>Total</td><td class="mono">${fmt(sumE, 2)}</td><td class="mono">€ ${fmt(sumEur, 2)}</td>`; tb.appendChild(trT);
+
+            drawTOUChart(); recomputeGrandTotals();
+        }
+
+
+
+        function recomputeGrandTotals() {
+            const n = Math.max(cache.peakEuros.length, cache.energyTariffEuros.length, cache.touEuros.length); if (!n) return;
+            const peak = cache.peakEuros, netkwh = cache.energyTariffEuros, touc = cache.touEuros; const tb = $('#tblGrand tbody'); if (!tb) return; tb.innerHTML = '';
+            let sumP = 0, sumN = 0, sumE = 0, sumT = 0;
+            for (let i = 0; i < n; i++) {
+                const p = +(peak[i] || 0), nrg = +(netkwh[i] || 0), e = +(touc[i] || 0); const tot = p + nrg + e; sumP += p; sumN += nrg; sumE += e; sumT += tot;
+                const tr = document.createElement('tr'); tr.innerHTML = `<td>EV${i + 1}</td><td class="mono">€ ${fmt(p, 2)}</td><td class="mono">€ ${fmt(nrg, 2)}</td><td class="mono">€ ${fmt(e, 2)}</td><td class="mono">€ ${fmt(tot, 2)}</td>`; tb.appendChild(tr)
+            }
+            const trT = document.createElement('tr'); trT.className = 'totals'; trT.innerHTML = `<td>Total</td><td class="mono">€ ${fmt(sumP, 2)}</td><td class="mono">€ ${fmt(sumN, 2)}</td><td class="mono">€ ${fmt(sumE, 2)}</td><td class="mono">€ ${fmt(sumT, 2)}</td>`; tb.appendChild(trT)
+        }
+
+        // Sync other drivers with capacity demands
+        function syncOthersWithCapacity() {
+            if (state.p && state.p.length > 1) {
+                // Take all capacity demands except the first one (EV A)
+                const othersKwh = state.p.slice(1);
+                $('#others_kwh').value = othersKwh.join(',');
+                updateTOU();
+            }
+        }
+
+        // Bootstrap
+        function bootstrap() {
+            initSVG(); const sumP = state.p.reduce((s, x) => s + x, 0); $('#rngH').max = Math.max(1, sumP); $('#rngH').value = state.H; $('#rngC').value = state.C;
+            const wN = normalizeWeights(state.w); const maxB = Math.max(1, ...state.p.map((pi, i) => wN[i] > 1e-12 ? pi / wN[i] : 0)); $('#rngT').max = Math.max(1, maxB); update(); initEnergyDefaults()
+
+            // Add other drivers event listeners after DOM is ready
+            $('#others_kwh').addEventListener('input', () => {
+                console.log('others_kwh changed');
+                updateTOU();
+            });
+            $('#others_price').addEventListener('input', () => {
+                console.log('others_price changed');
+                updateTOU();
+            });
+
+            // Add sync button event listener
+            $('#btnSyncOthers').addEventListener('click', syncOthersWithCapacity);
+        }
+        bootstrap(); genExamplePrices(); updateTOU();
+    </script>
+</body>
+
+</html>
