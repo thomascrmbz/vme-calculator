@@ -379,7 +379,7 @@
                     <input id="rngH" type="range" min="0" max="45" step="0.1" value="8" />
                 </div>
                 <div class="cell md">
-                    <label>Peak cost C (EUR) <span id="lblC" class="mono"></span></label>
+                    <label>Peak rate r (€/kW) <span id="lblC" class="mono"></span></label>
                     <input id="rngC" type="range" min="0" max="200" step="1" value="20" />
                 </div>
                 <div class="cell sm">
@@ -661,10 +661,27 @@
 
         function update() {
             const res = weightedWaterFilling(state.p, state.H, state.w); state.targetT = res.t;
-            const { a } = res; const { c, shares } = contributionsAndShares(state.p, a, state.C); const sharesRounded = roundCentsFix(shares, state.C); cache.peakEuros = sharesRounded.slice(); recomputeGrandTotals();
-            const sumP = state.p.reduce((s, x) => s + x, 0); const Heff = res.Heff; const sumC = c.reduce((s, x) => s + x, 0);
+            const { a } = res;
+
+            // contributions in kW per EV
+            const c = state.p.map((pi, i) => Math.max(0, pi - a[i]));
+            const sumC = c.reduce((s, x) => s + x, 0);
+
+            // treat slider as €/kW → per-EV € = rate * c_i
+            const sharesExact = c.map(ci => state.C * ci);
+            const totalExact = sharesExact.reduce((s, x) => s + x, 0);
+
+            // round & keep totals consistent to cents
+            const sharesRounded = roundCentsFix(sharesExact, Math.round(totalExact * 100) / 100);
+
+            cache.peakEuros = sharesRounded.slice();
+            recomputeGrandTotals();
+
+            const sumP = state.p.reduce((s, x) => s + x, 0);
+            const Heff = res.Heff;
+
             $('#kpiSumP').textContent = fmt(sumP, 2) + ' kW'; $('#kpiHeff').textContent = fmt(Heff, 2) + ' kW'; $('#kpiSumC').textContent = fmt(sumC, 2) + ' kW';
-            $('#lblH').textContent = '(' + fmt(state.H, 2) + ' kW)'; $('#lblC').textContent = '(' + fmt(state.C, 0) + ' €)'; $('#Hval').textContent = fmt(state.H, 2); $('#tStar').textContent = fmt(state.targetT, 2);
+            $('#lblH').textContent = '(' + fmt(state.H, 2) + ' kW)'; $('#lblC').textContent = '(' + fmt(state.C, 2) + ' €/kW)'; $('#Hval').textContent = fmt(state.H, 2); $('#tStar').textContent = fmt(state.targetT, 2);
             const tManual = parseFloat($('#rngT').value); const used = usedAtLevelT(tManual); $('#usedHeadroom').textContent = fmt(used, 2);
             const pct = Math.max(0, Math.min(100, (state.H > 0 ? (used / state.H * 100) : 0))); $('#barUsed').style.width = pct + '%';
             drawBuckets(tManual); renderTable(a, c, sharesRounded, res.t); drawPie(c); renderPieLegend(c);
