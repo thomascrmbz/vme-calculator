@@ -660,6 +660,7 @@
         function usedAtLevelT(t) { const wN = normalizeWeights(state.w); let used = 0; for (let i = 0; i < state.p.length; i++)used += Math.min(state.p[i], wN[i] * t); return used }
 
         function update() {
+            const res = weightedWaterFilling(state.p, state.H, state.w); state.targetT = res.t;
             const { a } = res;
 
             // kW contributions per EV
@@ -682,8 +683,11 @@
             const sumP = state.p.reduce((s, x) => s + x, 0);
             const Heff = res.Heff;
 
+
             $('#kpiSumP').textContent = fmt(sumP, 2) + ' kW'; $('#kpiHeff').textContent = fmt(Heff, 2) + ' kW'; $('#kpiSumC').textContent = fmt(sumC, 2) + ' kW';
-            $('#lblH').textContent = '(' + fmt(state.H, 2) + ' kW)'; $('#lblC').textContent = '(' + fmt(state.C, 2) + ' €/kW·yr; monthly ' + fmt(state.C / 12, 2) + ' €/kW·mo)'; $('#Hval').textContent = fmt(state.H, 2); $('#tStar').textContent = fmt(state.targetT, 2);
+            $('#lblH').textContent = '(' + fmt(state.H, 2) + ' kW)';
+            $('#lblC').textContent = '(' + fmt(state.C, 2) + ' €/kW·yr; monthly ' + fmt(state.C / 12, 2) + ' €/kW·mo)';
+            $('#Hval').textContent = fmt(state.H, 2); $('#tStar').textContent = fmt(state.targetT, 2);
             const tManual = parseFloat($('#rngT').value); const used = usedAtLevelT(tManual); $('#usedHeadroom').textContent = fmt(used, 2);
             const pct = Math.max(0, Math.min(100, (state.H > 0 ? (used / state.H * 100) : 0))); $('#barUsed').style.width = pct + '%';
             drawBuckets(tManual); renderTable(a, c, sharesRounded, res.t); drawPie(c); renderPieLegend(c);
